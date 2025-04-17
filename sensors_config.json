@@ -1,0 +1,21 @@
+{
+  "id": "eddy-covariance-001",
+  "type": "eddy covariance",
+  "location": {
+    "latitude": 52.1234,
+    "longitude": 17.5678,
+    "altitude": 85
+  },
+  "data_output_format": "CSV",
+  "data_output_units": {
+    "CO2_flux": "umol/m2/s",
+    "H2O_flux": "mmol/m2/s",
+    "sensible_heat_flux": "W/m2",
+    "latent_heat_flux": "W/m2",
+    "wind_speed": "m/s",
+    "wind_direction": "degrees",
+    "air_temperature": "C",
+    "air_pressure": "kPa"
+  },
+  "data_output_frequency": "10 Hz"
+}

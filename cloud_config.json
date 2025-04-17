@@ -1,0 +1,6 @@
+{
+  "cloud_provider": "AWS",
+  "data_storage_type": "Time-series database (TimescaleDB)",
+  "data_stream_type": "Kinesis Data Streams",
+  "authentication_method": "IAM"
+}

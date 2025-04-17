@@ -1,0 +1,83 @@
+{
+  "api_definition": {
+    "name": "Rzecin Peatland Monitoring API",
+    "version": "1.0",
+    "endpoints": [
+      {
+        "path": "/sensors",
+        "method": "GET",
+        "description": "Retrieve a list of all available sensors",
+        "response": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for the sensor"
+              },
+              "type": {
+                "type": "string",
+                "description": "Type of the sensor (e.g., eddy covariance, spectrometer)"
+              },
+              "location": {
+                "type": "string",
+                "description": "Location of the sensor"
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/data",
+        "method": "GET",
+        "description": "Retrieve sensor data",
+        "parameters": [
+          {
+            "name": "sensor_id",
+            "in": "query",
+            "description": "ID of the sensor",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "description": "Start date for data retrieval (YYYY-MM-DD)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "description": "End date for data retrieval (YYYY-MM-DD)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "response": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "description": "Data values from the sensor",
+            "properties":{
+                "timestamp": {
+                    "type": "string",
+                    "format":"date-time",
+                    "description": "Timestamp of the data"
+                }
+            }
+          }
+        }
+      }
+    ]
+  }
+}
