@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rzecin Sensor Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .chart-container {
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .current-values {
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+            grid-column: span 2;
+        }
+        .value-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+        .value-card {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 15px;
+            text-align: center;
+        }
+        .value-card h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .value-card .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #3498db;
+        }
+        .value-card .unit {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            .value-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .current-values {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Rzecin Sensor Dashboard</h1>
+            <p>Real-time environmental monitoring</p>
+        </div>
+        
+        <div class="current-values">
+            <h2>Current Readings</h2>
+            <div class="value-grid">
+                <div class="value-card">
+                    <h3>Air Temperature</h3>
+                    <div class="value" id="current-temperature">--</div>
+                    <div class="unit">°C</div>
+                </div>
+                <div class="value-card">
+                    <h3>Wind Speed</h3>
+                    <div class="value" id="current-wind-speed">--</div>
+                    <div class="unit">m/s</div>
+                </div>
+                <div class="value-card">
+                    <h3>CO₂ Flux</h3>
+                    <div class="value" id="current-co2-flux">--</div>
+                    <div class="unit">μmol/m²/s</div>
+                </div>
+                <div class="value-card">
+                    <h3>H₂O Flux</h3>
+                    <div class="value" id="current-h2o-flux">--</div>
+                    <div class="unit">mmol/m²/s</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="dashboard-grid">
+            <div class="chart-container">
+                <h2>Temperature History</h2>
+                <canvas id="temperatureChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>Wind Speed History</h2>
+                <canvas id="windSpeedChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>CO₂ Flux History</h2>
+                <canvas id="co2FluxChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>H₂O Flux History</h2>
+                <canvas id="h2oFluxChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Socket.IO connection
+        const socket = io();
+        
+        // Chart configuration
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'minute',
+                        displayFormats: {
+                            minute: 'HH:mm'
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Time'
+                    }
+                },
+                y: {
+                    beginAtZero: false
+                }
+            },
+            animation: {
+                duration: 500
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        };
+        
+        // Initialize charts
+        const temperatureChart = new Chart(
+            document.getElementById('temperatureChart').getContext('2d'),
+            {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Temperature',
+                        data: [],
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    ...chartOptions,
+                    scales: {
+                        ...chartOptions.scales,
+                        y: {
+                            ...chartOptions.scales.y,
+                            title: {
+                                display: true,
+                                text: '°C'
+                            }
+                        }
+                    }
+                }
+            }
+        );
+        
+        const windSpeedChart = new Chart(
+            document.getElementById('windSpeedChart').getContext('2d'),
+            {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Wind Speed',
+                        data: [],
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    ...chartOptions,
+                    scales: {
+                        ...chartOptions.scales,
+                        y: {
+                            ...chartOptions.scales.y,
+                            title: {
+                                display: true,
+                                text: 'm/s'
+                            }
+                        }
+                    }
+                }
+            }
+        );
+        
+        const co2FluxChart = new Chart(
+            document.getElementById('co2FluxChart').getContext('2d'),
+            {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'CO₂ Flux',
+                        data: [],
+                        borderColor: '#2ecc71',
+                        backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    ...chartOptions,
+                    scales: {
+                        ...chartOptions.scales,
+                        y: {
+                            ...chartOptions.scales.y,
+                            title: {
+                                display: true,
+                                text: 'μmol/m²/s'
+                            }
+                        }
+                    }
+                }
+            }
+        );
+        
+        const h2oFluxChart = new Chart(
+            document.getElementById('h2oFluxChart').getContext('2d'),
+            {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'H₂O Flux',
+                        data: [],
+                        borderColor: '#9b59b6',
+                        backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    ...chartOptions,
+                    scales: {
+                        ...chartOptions.scales,
+                        y: {
+                            ...chartOptions.scales.y,
+                            title: {
+                                display: true,
+                                text: 'mmol/m²/s'
+                            }
+                        }
+                    }
+                }
+            }
+        );
+        
+        // Update current values
+        function updateCurrentValues(data) {
+            document.getElementById('current-temperature').textContent = data.air_temperature;
+            document.getElementById('current-wind-speed').textContent = data.wind_speed;
+            document.getElementById('current-co2-flux').textContent = data.CO2_flux;
+            document.getElementById('current-h2o-flux').textContent = data.H2O_flux;
+        }
+        
+        // Process historical data
+        function processHistoricalData(data) {
+            // Clear existing data
+            temperatureChart.data.datasets[0].data = [];
+            windSpeedChart.data.datasets[0].data = [];
+            co2FluxChart.data.datasets[0].data = [];
+            h2oFluxChart.data.datasets[0].data = [];
+            
+            // Add new data points
+            data.forEach(point => {
+                const timestamp = new Date(point.timestamp);
+                
+                temperatureChart.data.datasets[0].data.push({
+                    x: timestamp,
+                    y: point.air_temperature
+                });
+                
+                windSpeedChart.data.datasets[0].data.push({
+                    x: timestamp,
+                    y: point.wind_speed
+                });
+                
+                co2FluxChart.data.datasets[0].data.push({
+                    x: timestamp,
+                    y: point.CO2_flux
+                });
+                
+                h2oFluxChart.data.datasets[0].data.push({
+                    x: timestamp,
+                    y: point.H2O_flux
+                });
+            });
+            
+            // Update charts
+            temperatureChart.update();
+            windSpeedChart.update();
+            co2FluxChart.update();
+            h2oFluxChart.update();
+            
+            // Update current values with the latest data point if available
+            if (data.length > 0) {
+                updateCurrentValues(data[data.length - 1]);
+            }
+        }
+        
+        // Socket.IO event handlers
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+        
+        socket.on('sensor_update', (data) => {
+            console.log('Received sensor update:', data);
+            updateCurrentValues(data);
+            
+            // Add new data point to charts
+            const timestamp = new Date(data.timestamp);
+            
+            temperatureChart.data.datasets[0].data.push({
+                x: timestamp,
+                y: data.air_temperature
+            });
+            
+            windSpeedChart.data.datasets[0].data.push({
+                x: timestamp,
+                y: data.wind_speed
+            });
+            
+            co2FluxChart.data.datasets[0].data.push({
+                x: timestamp,
+                y: data.CO2_flux
+            });
+            
+            h2oFluxChart.data.datasets[0].data.push({
+                x: timestamp,
+                y: data.H2O_flux
+            });
+            
+            // Limit data points to prevent performance issues
+            const maxDataPoints = 50;
+            if (temperatureChart.data.datasets[0].data.length > maxDataPoints) {
+                temperatureChart.data.datasets[0].data.shift();
+                windSpeedChart.data.datasets[0].data.shift();
+                co2FluxChart.data.datasets[0].data.shift();
+                h2oFluxChart.data.datasets[0].data.shift();
+            }
+            
+            // Update charts
+            temperatureChart.update();
+            windSpeedChart.update();
+            co2FluxChart.update();
+            h2oFluxChart.update();
+        });
+        
+        socket.on('sensor_history', (data) => {
+            console.log('Received sensor history:', data);
+            processHistoricalData(data);
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+        });
+        
+        // Initial data load
+        fetch('/api/sensor-data')
+            .then(response => response.json())
+            .then(data => {
+                processHistoricalData(data);
+            })
+            .catch(error => {
+                console.error('Error fetching initial data:', error);
+            });
+    </script>
+</body>
+</html>

@@ -45,7 +45,7 @@ def handle_data():
                   file_data.append(data)
                   f.seek(0)
                   json.dump(file_data,f,indent=4)
-                    print(f"Data received and stored in {data_file}")
+                  print(f"Data received and stored in {data_file}")
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON line: {line}. Error: {e}")
 
